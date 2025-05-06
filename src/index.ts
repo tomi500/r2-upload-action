@@ -58,9 +58,9 @@ const deleteRemoteFiles = async (bucket: string, prefix: string) => {
             Bucket: bucket,
             Prefix: prefix
         };
-        
+
         const listedObjects = await S3.send(new ListObjectsV2Command(listParams));
-        
+
         if (listedObjects.Contents && listedObjects.Contents.length > 0) {
             const deleteParams: DeleteObjectsCommandInput = {
                 Bucket: bucket,
@@ -91,14 +91,21 @@ const run = async (config: R2Config) => {
     const files: FileMap = getFileList(config.sourceDir);
 
     for (const file in files) {
-        console.log(config.sourceDir);
-        console.log(config.destinationDir);
-        //const fileName = file.replace(config.sourceDir, "");
         const fileName = files[file];
-        // const fileKey = path.join(config.destinationDir !== "" ? config.destinationDir : config.sourceDir, fileName);
 
-        const destinationDir = config.destinationDir.split(path.sep).join('/');
-        const fileKey = path.posix.join(destinationDir !== "" ? destinationDir : config.sourceDir.split(path.sep).join('/'), fileName.split(path.sep).join('/'));
+        // Handle destination directory paths properly with special cases for root and empty directory
+        let fileKey;
+
+        if (config.destinationDir === '/' || config.destinationDir === '') {
+            // Root directory case or empty string - don't add any prefix, just use the file name
+            fileKey = fileName.split(path.sep).join('/');
+            console.log(`Root directory or empty directory detected. Using file name directly: ${fileKey}`);
+        } else {
+            // Normal case - use specified destination directory
+            const destinationDir = config.destinationDir.split(path.sep).join('/');
+            fileKey = path.posix.join(destinationDir, fileName.split(path.sep).join('/'));
+            console.log(`Using destination directory: ${fileKey}`);
+        }
 
         if (fileKey.startsWith('/')) {
             console.log(`Removing the initial / from the file path: ${fileKey}`);
@@ -108,7 +115,7 @@ const run = async (config: R2Config) => {
         if (fileName.includes('.gitkeep'))
             continue;
 
-        console.log(fileKey);
+        console.log(`Final file key: ${fileKey}`);
 
         try {
             const fileMB = getFileSizeMB(file);
@@ -224,10 +231,8 @@ const uploadMultiPart: UploadHandler<CompleteMultipartUploadCommandOutput> = asy
     const completeCmd = new CompleteMultipartUploadCommand(completeMultiPartUploadParams);
 
     let attempts = 0;
-    while (attempts < retries)
-    {
-        try
-        {
+    while (attempts < retries) {
+        try {
             console.log(`Attempting multipart upload (${attempts + 1}/${retries}) of ${file}`);
 
             const data = await S3.send(completeCmd);
@@ -278,10 +283,8 @@ const putObject: UploadHandler<PutObjectCommandOutput> = async (file: string, fi
     // });
 
     let attempts = 0;
-    while (attempts < retries)
-    {
-        try
-        {
+    while (attempts < retries) {
+        try {
             console.log(`Attempting upload (${attempts + 1}/${retries}) of ${file}`);
 
             const data = await S3.send(cmd);
