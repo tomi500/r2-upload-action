@@ -100,6 +100,11 @@ const run = async (config: R2Config) => {
         const destinationDir = config.destinationDir.split(path.sep).join('/');
         const fileKey = path.posix.join(destinationDir !== "" ? destinationDir : config.sourceDir.split(path.sep).join('/'), fileName.split(path.sep).join('/'));
 
+        if (fileKey.startsWith('/')) {
+            console.log(`Removing the initial / from the file path: ${fileKey}`);
+            fileKey = fileKey.substring(1);
+        }
+
         if (fileName.includes('.gitkeep'))
             continue;
 
